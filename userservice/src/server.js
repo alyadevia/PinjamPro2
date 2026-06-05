@@ -46,7 +46,7 @@ const main = async () => {
     // Tambahkan service ke server
     server.addService(userProto.UserService.service, userServiceLogic);
 
-    const port = process.env.PORT || 50051;
+    const port = process.env.USER_SERVICE_PORT || 50051;
     server.bindAsync(
       `0.0.0.0:${port}`,
       grpc.ServerCredentials.createInsecure(),

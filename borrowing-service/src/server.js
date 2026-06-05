@@ -25,7 +25,7 @@ const main = async () => {
   const server = new grpc.Server();
   server.addService(borrowingProto.BorrowingService.service, borrowingServiceLogic);
 
-  const port = process.env.PORT || 50053;
+  const port = process.env.BORROWING_SERVICE_PORT || 50053;
   server.bindAsync(
     `0.0.0.0:${port}`,
     grpc.ServerCredentials.createInsecure(),

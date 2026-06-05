@@ -118,7 +118,7 @@ const main = () => {
   const server = new grpc.Server();
   server.addService(notificationProto.NotificationService.service, notificationServiceLogic);
 
-  const port = process.env.PORT || 50054;
+  const port = process.env.NOTIFICATION_SERVICE_PORT || 50054;
   server.bindAsync(
     `0.0.0.0:${port}`,
     grpc.ServerCredentials.createInsecure(),

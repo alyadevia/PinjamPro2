@@ -25,7 +25,7 @@ const main = async () => {
   const server = new grpc.Server();
   server.addService(itemProto.ItemService.service, itemServiceLogic);
 
-  const port = process.env.PORT || 50052;
+  const port = process.env.ITEM_SERVICE_PORT || 50052;
   server.bindAsync(
     `0.0.0.0:${port}`,
     grpc.ServerCredentials.createInsecure(),
