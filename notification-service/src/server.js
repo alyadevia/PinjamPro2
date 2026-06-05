@@ -19,7 +19,7 @@ const userPackageDefinition = protoLoader.loadSync(USER_PROTO_PATH, {
 });
 const userProto = grpc.loadPackageDefinition(userPackageDefinition).user;
 const userClient = new userProto.UserService(
-  process.env.USER_SERVICE_URL || 'localhost:50051',
+  process.env.USER_SERVICE_URL || 'https://backend-production-cf75a.up.railway.app:50051',
   grpc.credentials.createInsecure()
 );
 console.log('gRPC client untuk User Service terhubung.');
@@ -72,7 +72,7 @@ ${message}`;
         const borrowIdMatch = message.match(/\(ID: (.*?)\)/);
         const borrowId = borrowIdMatch ? borrowIdMatch[1] : null;
 
-        const receiptLink = `http://localhost:3000/receipt/${borrowId}`;
+        const receiptLink = `https://backend-production-cf75a.up.railway.app/receipt/${borrowId}`;
 
         messageBody = `✅ *Peminjaman Disetujui (PinjamPro)*
 Halo ${user.name},
