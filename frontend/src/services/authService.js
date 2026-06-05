@@ -1,7 +1,7 @@
 import api from './api';
 
 const register = (name, email, password, phoneNumber) => {
-  return api.post('/auth/register', {
+  return api.post('/api/auth/register', {
     name,
     email,
     password,
@@ -10,7 +10,7 @@ const register = (name, email, password, phoneNumber) => {
 };
 
 const login = (email, password) => {
-  return api.post('/auth/login', {
+  return api.post('/api/auth/login', {
     email,
     password,
   }).then((response) => {
@@ -19,7 +19,7 @@ const login = (email, password) => {
 };
 
 const getMe = () => {
-  return api.get('/auth/me');
+  return api.get('/api/auth/me');
 };
 
 const authService = {
