@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package notification;
+
+service NotificationService {
+rpc SendNotification(NotificationRequest) returns (NotificationResponse);
+}
+
+message NotificationRequest {
+string user_id = 1;
+string message = 2;
+string type = 3; // "BORROW_APPROVED", "BORROW_REJECTED", "RETURN_REMINDER"
+}
+
+message NotificationResponse {
+bool success = 1;
+string message = 2;
+}

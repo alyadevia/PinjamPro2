@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package borrowing;
+
+service BorrowingService {
+// Alur User
+rpc CreateBorrowRequest(CreateBorrowRequest) returns (BorrowingResponse);
+rpc GetMyBorrowings(GetUserRequest) returns (BorrowingListResponse);
+rpc ReturnItem(ReturnItemRequest) returns (BorrowingResponse); // User/Admin menandai kembali
+
+// Alur Admin
+rpc GetAllBorrowings(GetAllRequest) returns (BorrowingListResponse);
+rpc ApproveBorrowing(BorrowingActionRequest) returns (BorrowingResponse);
+rpc RejectBorrowing(BorrowingActionRequest) returns (BorrowingResponse);
+rpc GetHistory(GetHistoryRequest) returns (BorrowingListResponse);
+}
+
+message CreateBorrowRequest {
+string user_id = 1;
+string item_id = 2;
+int32 quantity = 3;
+string start_date = 4; // ISO 8601 String
+string end_date = 5;   // ISO 8601 String
+string notes = 6;
+}
+
+message GetUserRequest {
+string user_id = 1;
+}
+
+message GetAllRequest {
+string status_filter = 1; // 'pending', 'approved', dll.
+}
+
+message ReturnItemRequest {
+string borrowing_id = 1;
+string user_id = 2; // ID user yg melakukan aksi (bisa user ybs atau admin)
+string admin_notes = 3; // Opsional jika admin yg kembalikan
+}
+
+message BorrowingActionRequest {
+string borrowing_id = 1;
+string admin_id = 2; // Untuk tracking siapa yg approve/reject
+string admin_notes = 3;
+}
+
+message GetHistoryRequest {
+string user_id = 1; // Opsional, untuk filter per user
+string start_date_filter = 2;
+string end_date_filter = 3;
+}
+
+message BorrowRequest {
+string id = 1;
+string user_id = 2;
+string item_id = 3;
+int32 quantity = 4;
+string start_date = 5;
+string end_date = 6;
+string status = 7; // 'pending', 'approved', 'rejected', 'returned', 'late'
+string notes = 8;
+string admin_notes = 9;
+string created_at = 10;
+// Anda bisa tambahkan detail user/item di sini jika perlu (JOIN di API Gateway)
+}
+
+message BorrowingResponse {
+BorrowRequest borrow_request = 1;
+}
+
+message BorrowingListResponse {
+repeated BorrowRequest borrow_requests = 1;
+}
