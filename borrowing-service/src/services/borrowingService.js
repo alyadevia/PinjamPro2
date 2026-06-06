@@ -2,201 +2,137 @@ const grpc = require('@grpc/grpc-js');
 const Borrowing = require('../models/borrowingModel');
 const { Op } = require('sequelize');
 
-const mapBorrowingToProto = (b) => ({
-  id: b.id,
-  user_id: b.userId,
-  item_id: b.itemId,
-  quantity: b.quantity,
-  start_date: b.startDate,
-  end_date: b.endDate,
-  status: b.status,
-  notes: b.notes,
-  admin_notes: b.adminNotes,
-  created_at: b.createdAt,
-});
+const mapBorrowingToProto = (borrowingJSON) => {
+  return {
+    id: borrowingJSON.id,
+    user_id: borrowingJSON.userId, 
+    item_id: borrowingJSON.itemId, 
+    quantity: borrowingJSON.quantity,
+    start_date: borrowingJSON.startDate, 
+    end_date: borrowingJSON.endDate, 
+    status: borrowingJSON.status,
+    notes: borrowingJSON.notes,
+    admin_notes: borrowingJSON.adminNotes, 
+    created_at: borrowingJSON.createdAt, 
+  };
+};
 
-// ================= CREATE =================
-const CreateBorrowRequest = async (call, callback) => {
-  try {
+const borrowingService = {
+  CreateBorrowRequest: async (call, callback) => {
     const { user_id, item_id, quantity, start_date, end_date, notes } = call.request;
-
-    if (!user_id || !item_id || !quantity || !start_date || !end_date) {
-      return callback({
-        code: grpc.status.INVALID_ARGUMENT,
-        message: 'Missing required fields',
+    try {
+      if (!user_id || !item_id || !quantity || !start_date || !end_date) {
+        return callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'Missing required fields',
+        });
+      }
+      const newBorrowing = await Borrowing.create({
+        userId: user_id,
+        itemId: item_id,
+        quantity: quantity,
+        startDate: new Date(start_date),
+        endDate: new Date(end_date),
+        notes: notes || '',
+        status: 'pending',
       });
+      callback(null, { borrow_request: mapBorrowingToProto(newBorrowing.toJSON()) });
+    } catch (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: error.message });
     }
+  },
 
-    const borrow = await Borrowing.create({
-      userId: user_id,
-      itemId: item_id,
-      quantity,
-      startDate: new Date(start_date),
-      endDate: new Date(end_date),
-      notes: notes || '',
-      status: 'pending',
-    });
+  UpdateBorrowStatus: async (borrowing_id, new_status, admin_notes = '', callback) => {
+    try {
+      const borrowRequest = await Borrowing.findByPk(borrowing_id);
+      if (!borrowRequest) {
+        return callback({
+          code: grpc.status.NOT_FOUND,
+          message: 'Borrowing request not found',
+        });
+      }
 
-    callback(null, {
-      borrow_request: mapBorrowingToProto(borrow.toJSON()),
-    });
-  } catch (err) {
-    console.error(err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
-  }
-};
-
-// ================= UPDATE STATUS (CORE FIX) =================
-const UpdateBorrowStatus = async (borrowing_id, status, admin_notes = '') => {
-  const borrow = await Borrowing.findByPk(borrowing_id);
-
-  if (!borrow) {
-    throw new Error('Borrowing request not found');
-  }
-
-  borrow.status = status;
-
-  if (admin_notes) {
-    borrow.adminNotes = admin_notes;
-  }
-
-  await borrow.save();
-  return borrow;
-};
-
-// ================= APPROVE =================
-const ApproveBorrowing = async (call, callback) => {
-  try {
+      borrowRequest.status = new_status;
+      if (admin_notes) {
+        borrowRequest.adminNotes = admin_notes;
+      }
+      await borrowRequest.save();
+      callback(null, { borrow_request: mapBorrowingToProto(borrowRequest.toJSON()) });
+    } catch (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: error.message });
+    }
+  },
+  
+  ApproveBorrowing: (call, callback) => {
     const { borrowing_id, admin_notes } = call.request;
+    borrowingService.UpdateBorrowStatus(borrowing_id, 'approved', admin_notes, callback);
+  },
 
-    const result = await UpdateBorrowStatus(
-      borrowing_id,
-      'approved',
-      admin_notes
-    );
-
-    callback(null, {
-      borrow_request: mapBorrowingToProto(result.toJSON()),
-    });
-  } catch (err) {
-    console.error(err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
-  }
-};
-
-// ================= REJECT =================
-const RejectBorrowing = async (call, callback) => {
-  try {
+  RejectBorrowing: (call, callback) => {
     const { borrowing_id, admin_notes } = call.request;
+    borrowingService.UpdateBorrowStatus(borrowing_id, 'rejected', admin_notes, callback);
+  },
 
-    const result = await UpdateBorrowStatus(
-      borrowing_id,
-      'rejected',
-      admin_notes
-    );
-
-    callback(null, {
-      borrow_request: mapBorrowingToProto(result.toJSON()),
-    });
-  } catch (err) {
-    console.error(err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
-  }
-};
-
-// ================= RETURN =================
-const ReturnItem = async (call, callback) => {
-  try {
+  ReturnItem: (call, callback) => {
     const { borrowing_id, admin_notes } = call.request;
+    borrowingService.UpdateBorrowStatus(borrowing_id, 'returned', admin_notes, callback);
+  },
 
-    const result = await UpdateBorrowStatus(
-      borrowing_id,
-      'returned',
-      admin_notes
-    );
+  GetMyBorrowings: async (call, callback) => {
+    try {
+      const requests = await Borrowing.findAll({
+        where: { userId: call.request.user_id },
+        order: [['createdAt', 'DESC']],
+      });
+      callback(null, { borrow_requests: requests.map(r => mapBorrowingToProto(r.toJSON())) });
+    } catch (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: error.message });
+    }
+  },
 
-    callback(null, {
-      borrow_request: mapBorrowingToProto(result.toJSON()),
-    });
-  } catch (err) {
-    console.error(err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
-  }
-};
-
-// ================= GET USER =================
-const GetMyBorrowings = async (call, callback) => {
-  try {
-    const data = await Borrowing.findAll({
-      where: { userId: call.request.user_id },
-      order: [['createdAt', 'DESC']],
-    });
-
-    callback(null, {
-      borrow_requests: data.map((r) => mapBorrowingToProto(r.toJSON())),
-    });
-  } catch (err) {
-    console.error(err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
-  }
-};
-
-// ================= GET ALL =================
-const GetAllBorrowings = async (call, callback) => {
-  try {
+  GetAllBorrowings: async (call, callback) => {
     const { status_filter } = call.request;
-
-    const where = {};
-    if (status_filter) where.status = status_filter;
-
-    const data = await Borrowing.findAll({
-      where,
-      order: [['createdAt', 'DESC']],
-    });
-
-    callback(null, {
-      borrow_requests: data.map((r) => mapBorrowingToProto(r.toJSON())),
-    });
-  } catch (err) {
-    console.error(err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
-  }
-};
-
-// ================= HISTORY =================
-const GetHistory = async (call, callback) => {
-  try {
-    const { user_id } = call.request;
-
-    const where = {
-      status: { [Op.in]: ['returned', 'rejected', 'late'] },
-    };
-
-    if (user_id) {
-      where.userId = user_id;
+    try {
+      let whereCondition = {};
+      if (status_filter) {
+        whereCondition.status = status_filter;
+      }
+      const requests = await Borrowing.findAll({
+        where: whereCondition,
+        order: [['createdAt', 'DESC']],
+      });
+      callback(null, { borrow_requests: requests.map(r => mapBorrowingToProto(r.toJSON())) });
+    } catch (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: error.message });
     }
-
-    const data = await Borrowing.findAll({
-      where,
-      order: [['updatedAt', 'DESC']],
-    });
-
-    callback(null, {
-      borrow_requests: data.map((r) => mapBorrowingToProto(r.toJSON())),
-    });
-  } catch (err) {
-    console.error(err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
-  }
+  },
+  
+  GetHistory: async (call, callback) => {
+     const { user_id, start_date_filter, end_date_filter } = call.request;
+     try {
+       let whereCondition = {
+           status: {
+               [Op.in]: ['returned', 'rejected', 'late']
+           }
+       };
+       if (user_id) {
+           whereCondition.userId = user_id;
+       }
+       // ... (logika filter tanggal) ...
+       const requests = await Borrowing.findAll({
+           where: whereCondition,
+           order: [['updatedAt', 'DESC']]
+       });
+       callback(null, { borrow_requests: requests.map(r => mapBorrowingToProto(r.toJSON())) });
+     } catch (error) {
+        console.error(error);
+        callback({ code: grpc.status.INTERNAL, message: error.message });
+     }
+  },
 };
 
-module.exports = {
-  CreateBorrowRequest,
-  UpdateBorrowStatus,
-  ApproveBorrowing,
-  RejectBorrowing,
-  ReturnItem,
-  GetMyBorrowings,
-  GetAllBorrowings,
-  GetHistory,
-};
+module.exports = borrowingService;
