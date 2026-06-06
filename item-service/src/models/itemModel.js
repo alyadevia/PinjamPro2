@@ -42,6 +42,10 @@ const Item = sequelize.define(
       allowNull: true,
       field: 'image_url',
     },
+    is_deleted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    },
   },
   {
     tableName: 'items',
@@ -62,6 +66,7 @@ const Item = sequelize.define(
       }
     }
   }
+  
 );
 
 module.exports = Item;

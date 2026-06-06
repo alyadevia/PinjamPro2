@@ -2,20 +2,22 @@ const grpc = require('@grpc/grpc-js');
 const Item = require('../models/itemModel');
 const { Op } = require('sequelize');
 
+// Mapping ke proto
 const mapItemToProto = (itemJSON) => {
   return {
     id: itemJSON.id,
     name: itemJSON.name,
     description: itemJSON.description,
     category: itemJSON.category,
-    total_quantity: itemJSON.totalQuantity, 
-    available_quantity: itemJSON.availableQuantity, 
-    image_url: itemJSON.imageUrl, 
-    created_at: itemJSON.createdAt, 
+    total_quantity: itemJSON.totalQuantity,
+    available_quantity: itemJSON.availableQuantity,
+    image_url: itemJSON.imageUrl,
+    created_at: itemJSON.createdAt,
   };
 };
 
 const itemService = {
+  // CREATE ITEM
   CreateItem: async (call, callback) => {
     const { name, description, category, total_quantity, image_url } = call.request;
 
@@ -32,8 +34,9 @@ const itemService = {
         description: description || '',
         category: category || '',
         totalQuantity: total_quantity,
-        availableQuantity: total_quantity, // Atur available = total
+        availableQuantity: total_quantity,
         imageUrl: image_url || '',
+        is_deleted: 0, // penting
       });
 
       callback(null, { item: mapItemToProto(item.toJSON()) });
@@ -43,15 +46,23 @@ const itemService = {
     }
   },
 
+  // GET ITEM
   GetItem: async (call, callback) => {
     try {
-      const item = await Item.findByPk(call.request.id);
+      const item = await Item.findOne({
+        where: {
+          id: call.request.id,
+          is_deleted: 0,
+        },
+      });
+
       if (!item) {
         return callback({
           code: grpc.status.NOT_FOUND,
           message: 'Item not found',
         });
       }
+
       callback(null, { item: mapItemToProto(item.toJSON()) });
     } catch (error) {
       console.error(error);
@@ -59,10 +70,15 @@ const itemService = {
     }
   },
 
+  // UPDATE ITEM
   UpdateItem: async (call, callback) => {
     const { id, name, description, category, total_quantity, available_quantity, image_url } = call.request;
+
     try {
-      const item = await Item.findByPk(id);
+      const item = await Item.findOne({
+        where: { id, is_deleted: 0 },
+      });
+
       if (!item) {
         return callback({
           code: grpc.status.NOT_FOUND,
@@ -75,24 +91,25 @@ const itemService = {
       if (category) item.category = category;
       if (image_url) item.imageUrl = image_url;
 
-      // Logika Stok
+      // update total quantity
       if (total_quantity != null && total_quantity >= 0) {
         const newTotal = parseInt(total_quantity, 10);
         const oldTotal = item.totalQuantity;
-        const diff = newTotal - oldTotal; 
+        const diff = newTotal - oldTotal;
 
         item.totalQuantity = newTotal;
+
         if (diff > 0) {
           item.availableQuantity += diff;
         }
       }
-      
-      // Update available_quantity HANYA jika dikirim (dari sistem, bukan admin)
+
+      // update available (system use)
       if (available_quantity != null) {
         item.availableQuantity = available_quantity;
       }
 
-      await item.save(); // Hook beforeUpdate akan berjalan di sini
+      await item.save();
 
       callback(null, { item: mapItemToProto(item.toJSON()) });
     } catch (error) {
@@ -101,37 +118,52 @@ const itemService = {
     }
   },
 
+  // SOFT DELETE ITEM (INI FIX UTAMA)
   DeleteItem: async (call, callback) => {
     try {
       const item = await Item.findByPk(call.request.id);
-      if (!item) {
+
+      if (!item || item.is_deleted === 1) {
         return callback({
           code: grpc.status.NOT_FOUND,
           message: 'Item not found',
         });
       }
-      await item.destroy();
-      callback(null, {}); 
+
+      item.is_deleted = 1;
+      await item.save();
+
+      callback(null, { message: 'Item deleted (soft delete)' });
     } catch (error) {
       console.error(error);
       callback({ code: grpc.status.INTERNAL, message: error.message });
     }
   },
 
+  // LIST ITEMS (HANYA YANG AKTIF)
   ListItems: async (call, callback) => {
     const { category_filter } = call.request;
+
     try {
-      let whereCondition = {};
+      let whereCondition = {
+        is_deleted: 0,
+      };
+
       if (category_filter) {
         whereCondition.category = {
           [Op.like]: `%${category_filter}%`,
         };
       }
+
       const items = await Item.findAll({
         where: whereCondition,
         order: [['name', 'ASC']],
       });
-      const mappedItems = items.map((item) => mapItemToProto(item.toJSON()));
+
+      const mappedItems = items.map((item) =>
+        mapItemToProto(item.toJSON())
+      );
+
       callback(null, { items: mappedItems });
     } catch (error) {
       console.error(error);

@@ -56,10 +56,18 @@ const updateItem = asyncHandler(async (req, res) => {
   res.status(200).json(response.item);
 });
 
-const deleteItem = asyncHandler(async (req, res) => {
-  await grpcCall(itemClient, 'DeleteItem', { id: req.params.id });
-  res.status(200).json({ message: 'Item deleted' });
-});
+const deleteItem = async (call, callback) => {
+  try {
+    await Item.update(
+      { is_deleted: true },
+      { where: { id: call.request.id } }
+    );
+
+    callback(null, { message: "Item soft deleted" });
+  } catch (err) {
+    callback(err);
+  }
+};
 
 module.exports = {
   listItems,
