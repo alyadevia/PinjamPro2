@@ -19,7 +19,8 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
-  
+  const available = selectedItem?.available_quantity ?? 0;
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,9 +56,10 @@ export default function DashboardPage() {
   const handleSubmitPeminjaman = async (e) => {
     e.preventDefault();
     setFormError('');
+    
 
-    if (quantity > selectedItem.available_quantity) {
-      setFormError(`Jumlah pinjam tidak boleh lebih dari ${selectedItem.available_quantity}`);
+    if (!available ||quantity > available) {
+      setFormError(`Jumlah pinjam tidak boleh lebih dari ${available}`);
       return;
     }
 
@@ -108,9 +110,9 @@ export default function DashboardPage() {
             <input
               type="number"
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              min="1"
-              max={selectedItem?.available_quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              min={1}
+              max={available || 1}
               className="shadow appearance-none border rounded w-full py-2 px-3"
               required
             />
