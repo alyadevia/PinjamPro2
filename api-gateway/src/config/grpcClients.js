@@ -22,22 +22,22 @@ const borrowingProto = loadProto('borrowing.proto');
 const notificationProto = loadProto('notification.proto'); // <-- Pastikan aktif
 
 const userClient = new userProto.user.UserService(
-  process.env.USER_SERVICE_URL || 'USER_SERVICE:50051',
+  process.env.USER_SERVICE_URL || 'userservice:50051',
   grpc.credentials.createInsecure()
 );
 
 const itemClient = new itemProto.item.ItemService(
-  process.env.ITEM_SERVICE_URL || 'ITEM_SERVICE:50052',
+  process.env.ITEM_SERVICE_URL || 'item-service:50052',
   grpc.credentials.createInsecure()
 );
 
 const borrowingClient = new borrowingProto.borrowing.BorrowingService(
-  process.env.BORROWING_SERVICE_URL || 'BORROWING_SERVICE:50053',
+  process.env.BORROWING_SERVICE_URL || 'borrowing-service:50053',
   grpc.credentials.createInsecure()
 );
 
 const notificationClient = new notificationProto.notification.NotificationService(
-  process.env.NOTIFICATION_SERVICE_URL || 'NOTIFICATION_SERVICE:50054',
+  process.env.NOTIFICATION_SERVICE_URL || 'notification-service:50054',
   grpc.credentials.createInsecure()
 );
 
